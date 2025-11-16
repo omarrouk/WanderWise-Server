@@ -1,54 +1,71 @@
 import * as dotenv from "dotenv";
+import { Server } from "http";
+import chalk from "chalk";
 import app from "./app";
 import { connectDB, disconnectDB } from "./config/db";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+// Validate required environment variables
+const requiredEnv = ["MONGODB_URI"];
+requiredEnv.forEach((key) => {
+  if (!process.env[key]) {
+    console.error(chalk.red(`Missing required env variable: ${key}`));
+    process.exit(1);
+  }
+});
 
-let server: any;
+const PORT = process.env.PORT || 5000;
+let server: Server | undefined;
 
 // Start server
 const startServer = async (): Promise<void> => {
   try {
-    // Connect to database
     await connectDB();
+    console.log(chalk.green("Database connected"));
 
-    // Start Express server
     server = app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(chalk.green(`Server running at http://localhost:${PORT}`));
     });
   } catch (error: any) {
-    console.error(`Failed to start server: ${error.message}`);
+    console.error(chalk.red(`Failed to start server: ${error.message}`));
     process.exit(1);
   }
 };
 
 // Graceful shutdown
 const gracefulShutdown = async (signal: string): Promise<void> => {
-  console.log(`\n ${signal} received. Shutting down gracefully...`);
+  console.log(chalk.yellow(`${signal} received. Shutting down gracefully...`));
 
   if (server) {
     server.close(async () => {
-      console.log("🔒 HTTP server closed");
+      console.log(chalk.blue("HTTP server closed"));
       await disconnectDB();
+      console.log(chalk.magenta("Database disconnected"));
+      console.log(chalk.cyan("Shutdown complete"));
       process.exit(0);
     });
+  } else {
+    await disconnectDB();
+    console.log(chalk.magenta("Database disconnected (no active server)"));
+    console.log(chalk.cyan("Shutdown complete"));
+    process.exit(0);
   }
 };
 
 // Handle process signals
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+["SIGTERM", "SIGINT"].forEach((sig) =>
+  process.on(sig, () => gracefulShutdown(sig))
+);
 
 // Handle unhandled errors
 process.on("unhandledRejection", (reason: any) => {
-  console.error("Unhandled Rejection:", reason);
+  console.error(chalk.red("Unhandled Rejection:"), reason);
   gracefulShutdown("Unhandled Rejection");
 });
 
 process.on("uncaughtException", (error: Error) => {
-  console.error("Uncaught Exception:", error);
+  console.error(chalk.red("Uncaught Exception:"), error);
   process.exit(1);
 });
 

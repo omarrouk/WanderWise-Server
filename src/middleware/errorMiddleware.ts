@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import chalk from "chalk";
 
 export class AppError extends Error {
   public statusCode: number;
@@ -19,17 +20,11 @@ export const notFound = (
   res: Response,
   next: NextFunction
 ): void => {
-  const error = new AppError(
-    `Not Found - ${req.originalUrl}`,
-    404,
-    "NOT_FOUND"
-  );
-  next(error);
+  next(new AppError(`Not Found - ${req.originalUrl}`, 404, "NOT_FOUND"));
 };
 
 // Handle specific error types
 const handleMongooseError = (err: any): AppError => {
-  // Mongoose duplicate key error
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue || {})[0] || "field";
     const value = err.keyValue?.[field];
@@ -40,7 +35,6 @@ const handleMongooseError = (err: any): AppError => {
     );
   }
 
-  // Mongoose validation error
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors)
       .map((e: any) => e.message)
@@ -48,7 +42,6 @@ const handleMongooseError = (err: any): AppError => {
     return new AppError(messages, 400, "VALIDATION_ERROR");
   }
 
-  // Mongoose cast error (invalid ObjectId)
   if (err.name === "CastError") {
     return new AppError(`Invalid ${err.path}: ${err.value}`, 400, "INVALID_ID");
   }
@@ -75,35 +68,33 @@ const handleJWTError = (err: any): AppError => {
 };
 
 export const errorHandler = (
-  err: any,
+  err: unknown,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  let error = { ...err };
-  error.message = err.message;
+  let error: AppError;
 
-  // Log error for debugging
-  if (process.env.NODE_ENV === "development") {
-    console.error("❌ Error:", err);
+  if (err instanceof AppError) {
+    error = err;
+  } else if (err instanceof Error) {
+    error = new AppError(err.message, 500, "INTERNAL_ERROR");
   } else {
-    console.error(`❌ ${err.name}: ${err.message}`);
+    error = new AppError("Unknown error", 500, "UNKNOWN_ERROR");
   }
 
-  // Handle Mongoose errors
+  // Enhance with specific handlers
   error = handleMongooseError(error);
-
-  // Handle JWT errors
   error = handleJWTError(error);
 
   // Handle JSON syntax errors
-  if (err instanceof SyntaxError && "body" in err) {
+  if (err instanceof SyntaxError && "body" in (err as any)) {
     error = new AppError("Invalid JSON format", 400, "SYNTAX_ERROR");
   }
 
-  // Handle Prisma errors (if you switch to Prisma later)
-  if (err.code === "P2002") {
-    const field = err.meta?.target?.[0] || "field";
+  // Handle Prisma errors
+  if ((err as any).code === "P2002") {
+    const field = (err as any).meta?.target?.[0] || "field";
     error = new AppError(`${field} already exists`, 400, "DUPLICATE_FIELD");
   }
 
@@ -111,21 +102,31 @@ export const errorHandler = (
   const message = error.message || "Internal Server Error";
   const code = error.code || "INTERNAL_ERROR";
 
+  // Logging
+  if (process.env.NODE_ENV === "development") {
+    console.error(chalk.red("Error:"), err);
+  } else {
+    console.error(
+      chalk.red(`${err instanceof Error ? err.name : "Error"}: ${message}`)
+    );
+  }
+
   res.status(statusCode).json({
     success: false,
     error: {
       message,
       code,
       ...(process.env.NODE_ENV === "development" && {
-        stack: err.stack,
+        stack: (err as any).stack,
         details: err,
       }),
     },
   });
 };
 
+// Async handler wrapper
 export const asyncHandler =
-  (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+  <T>(fn: (req: Request, res: Response, next: NextFunction) => Promise<T>) =>
   (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

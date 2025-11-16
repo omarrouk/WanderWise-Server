@@ -8,13 +8,20 @@ import rateLimit from "express-rate-limit";
 import { errorHandler, notFound } from "./middleware/errorMiddleware";
 
 // Import routes
-import authRoutes from "./routes/authRoutes";
-import itineraryRoutes from "./routes/itineraryRoutes";
+
 
 const app: Application = express();
 
 // Security Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // disable if serving inline scripts
+    referrerPolicy: { policy: "no-referrer" },
+  })
+);
+
+// Trust proxy (needed if behind reverse proxy like Nginx/Heroku)
+app.set("trust proxy", 1);
 
 // CORS Configuration
 const corsOptions = {
@@ -27,7 +34,7 @@ app.use(cors(corsOptions));
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max 100 requests per windowMs
+  max: 100,
   message: "Too many requests, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
@@ -45,11 +52,8 @@ app.use(cookieParser());
 app.use(compression());
 
 // Logger Middleware
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-} else {
-  app.use(morgan("combined"));
-}
+const logFormat = process.env.NODE_ENV === "development" ? "dev" : "combined";
+app.use(morgan(logFormat));
 
 // Health Check Route
 app.get("/health", (req: Request, res: Response) => {
@@ -77,8 +81,7 @@ app.get("/api", (req: Request, res: Response) => {
 });
 
 // API Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/itineraries", itineraryRoutes);
+
 
 // 404 Handler - Must be after all routes
 app.use(notFound);
