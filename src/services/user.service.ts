@@ -1,4 +1,4 @@
-import { User } from "../models/User.model";
+import { User } from "../models/user.model";
 import { AppError } from "../middleware/errorMiddleware";
 
 export const getMeService = async (userId: string) => {

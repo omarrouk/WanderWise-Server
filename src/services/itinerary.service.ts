@@ -1,6 +1,6 @@
 import { Itinerary } from "../models/itinerary.model";
 import { AppError } from "../middleware/errorMiddleware";
-import { generateTravelItinerary, generateDayActivities } from "./ai.service";
+import { generateTravelItinerary } from "./ai.service";
 import { getCoordinatesByDestination, getWeatherForecast } from "./weather.service";
 import {
   CreateItineraryDTO,
@@ -93,17 +93,20 @@ export const generateAIItineraryService = async (
     destination,
     startDate,
     endDate,
-    budget,
     travelStyle || "comfort",
+    budget,
     preferences,
     duration
   );
 
-  // Initialize day itineraries with weather
+  // Initialize day itineraries with weather and AI-generated activities
   const dayItineraries: IDayItinerary[] = [];
   for (let i = 0; i < duration; i++) {
     const dayDate = new Date(start);
     dayDate.setDate(dayDate.getDate() + i);
+
+    // Get AI activities for this day
+    const dailyActivities = aiResponse.dayActivities[i] || [];
 
     dayItineraries.push({
       day: i + 1,
@@ -115,8 +118,8 @@ export const generateAIItineraryService = async (
         windSpeed: 5,
         icon: "01d",
       },
-      activities: [],
-      summary: "",
+      activities: dailyActivities,
+      summary: dailyActivities.map((a) => a.name).join(" • ") || "",
     });
   }
 
@@ -132,14 +135,14 @@ export const generateAIItineraryService = async (
     travelStyle: travelStyle || "comfort",
     preferences: preferences || [],
     aiGenerated: true,
-    aiNotes: aiResponse,
+    aiNotes: aiResponse.summary || aiResponse.tips,
   });
 
   return {
     success: true,
     message: "AI itinerary generated successfully",
     itinerary,
-    aiSuggestions: aiResponse,
+    aiSuggestions: aiResponse.summary,
   };
 };
 
