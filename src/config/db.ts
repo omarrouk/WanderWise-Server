@@ -22,9 +22,7 @@ export const connectDB = async (): Promise<void> => {
     );
   } catch (err: any) {
     console.error(chalk.red(`MongoDB connection failed: ${err.message}`));
-
-    // retry in 5 seconds
-    setTimeout(connectDB, 5000);
+    throw err;
   }
 };
 

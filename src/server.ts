@@ -3,6 +3,7 @@ import { Server } from "http";
 import chalk from "chalk";
 import app from "./app";
 import { connectDB, disconnectDB } from "./config/db";
+import mongoose from "mongoose";
 
 // Validate required environment variables
 const requiredEnv = ["MONGODB_URI"];
@@ -65,6 +66,17 @@ process.on("unhandledRejection", (reason: any) => {
 process.on("uncaughtException", (error: Error) => {
   console.error(chalk.red("Uncaught Exception:"), error);
   process.exit(1);
+});
+
+// If MongoDB disconnects or encounters an error after startup, shut down the server
+mongoose.connection.on("disconnected", () => {
+  console.error(chalk.red("Mongoose disconnected from database — shutting down server."));
+  setImmediate(() => gracefulShutdown("DB Disconnected"));
+});
+
+mongoose.connection.on("error", (err: Error) => {
+  console.error(chalk.red(`Mongoose connection error: ${err.message}`));
+  setImmediate(() => gracefulShutdown("DB Error"));
 });
 
 // Start the application

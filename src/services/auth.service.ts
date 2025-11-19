@@ -28,20 +28,25 @@ export const registerUserService = async (data: RegisterDTO) => {
   const user = await User.create({ firstName, lastName, email, password });
 
   // Generate verification token
-  const { token, expires } = generateToken(32, 24); // 24 hours
-  user.verificationToken = token;
+  const { token: verificationToken, expires } = generateToken(32, 24); // 24 hours
+  user.verificationToken = verificationToken;
   user.verificationTokenExpires = expires;
   await user.save();
 
   // Send verification email
-  const url = `${process.env.FRONTEND_URL}/verify?token=${token}`;
+  const url = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
   const html = generateEmailTemplate(user.firstName, url, "verify");
   await sendEmail(user.email, "Verify Your WanderWise Account", html);
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
+    expiresIn: "1d",
+  });
 
   return {
     success: true,
     message:
       "Registration successful! Check your email to verify your account.",
+    token,
     user: {
       id: user._id,
       email: user.email,
