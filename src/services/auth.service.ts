@@ -36,9 +36,16 @@ export const registerUserService = async (data: RegisterDTO) => {
   await user.save();
 
   // Send verification email
-  const url = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const url = `${frontendUrl}/verify?token=${verificationToken}`;
   const html = generateEmailTemplate(user.firstName, url, "verify");
-  await sendEmail(user.email, "Verify Your WanderWise Account", html);
+  
+  try {
+    await sendEmail(user.email, "Verify Your WanderWise Account", html);
+  } catch (emailError) {
+    console.error("Email sending failed:", emailError);
+    // Don't fail registration if email fails - user can resend
+  }
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
     expiresIn: "1d",
@@ -176,9 +183,15 @@ export const forgotPasswordService = async (data: ForgotPasswordDTO) => {
   user.resetPasswordExpires = expires;
   await user.save();
 
-  const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const url = `${frontendUrl}/reset-password?token=${token}`;
   const html = generateEmailTemplate(user.firstName, url, "reset");
-  await sendEmail(user.email, "Reset Your WanderWise Password", html);
+  
+  try {
+    await sendEmail(user.email, "Reset Your WanderWise Password", html);
+  } catch (emailError) {
+    console.error("Email sending failed:", emailError);
+  }
 
   return { success: true, message: "Password reset email sent" };
 };

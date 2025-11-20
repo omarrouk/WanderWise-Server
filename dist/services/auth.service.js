@@ -27,9 +27,16 @@ const registerUserService = async (data) => {
     user.verificationTokenExpires = expires;
     await user.save();
     // Send verification email
-    const url = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const url = `${frontendUrl}/verify?token=${verificationToken}`;
     const html = (0, emailTemplate_1.generateEmailTemplate)(user.firstName, url, "verify");
-    await (0, sendEmail_1.sendEmail)(user.email, "Verify Your WanderWise Account", html);
+    try {
+        await (0, sendEmail_1.sendEmail)(user.email, "Verify Your WanderWise Account", html);
+    }
+    catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        // Don't fail registration if email fails - user can resend
+    }
     const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET, {
         expiresIn: "1d",
     });
@@ -139,9 +146,15 @@ const forgotPasswordService = async (data) => {
     user.resetPasswordToken = token;
     user.resetPasswordExpires = expires;
     await user.save();
-    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const url = `${frontendUrl}/reset-password?token=${token}`;
     const html = (0, emailTemplate_1.generateEmailTemplate)(user.firstName, url, "reset");
-    await (0, sendEmail_1.sendEmail)(user.email, "Reset Your WanderWise Password", html);
+    try {
+        await (0, sendEmail_1.sendEmail)(user.email, "Reset Your WanderWise Password", html);
+    }
+    catch (emailError) {
+        console.error("Email sending failed:", emailError);
+    }
     return { success: true, message: "Password reset email sent" };
 };
 exports.forgotPasswordService = forgotPasswordService;
