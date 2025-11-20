@@ -33,26 +33,11 @@ const registerUserService = async (data) => {
     user.verificationTokenExpires = expires;
     await user.save();
     console.log("Verification token generated");
-    // Send verification email
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const url = `${frontendUrl}/verify?token=${verificationToken}`;
-    console.log("Sending verification email to:", email);
-    console.log("Verification URL:", url);
-    const html = (0, emailTemplate_1.generateEmailTemplate)(user.firstName, url, "verify");
-    try {
-        await (0, sendEmail_1.sendEmail)(user.email, "Verify Your WanderWise Account", html);
-        console.log("Verification email sent successfully");
-    }
-    catch (emailError) {
-        console.error("Email sending failed:", emailError);
-        // Don't fail registration if email fails - user can resend
-        // But log it for debugging
-    }
     const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET, {
         expiresIn: "1d",
     });
-    console.log("Registration completed successfully");
-    return {
+    // Build response FIRST
+    const response = {
         success: true,
         message: "Registration successful! Check your email to verify your account.",
         token,
@@ -63,6 +48,25 @@ const registerUserService = async (data) => {
             lastName: user.lastName,
         },
     };
+    // Send verification email asynchronously (DON'T wait for it)
+    // This way the response is sent to client immediately
+    (async () => {
+        try {
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+            const url = `${frontendUrl}/verify?token=${verificationToken}`;
+            console.log("Sending verification email to:", email);
+            console.log("Verification URL:", url);
+            const html = (0, emailTemplate_1.generateEmailTemplate)(user.firstName, url, "verify");
+            await (0, sendEmail_1.sendEmail)(user.email, "Verify Your WanderWise Account", html);
+            console.log("✅ Verification email sent successfully to:", email);
+        }
+        catch (emailError) {
+            console.error("❌ Email sending failed:", emailError);
+            // Email failed but user is registered - they can resend from verify page
+        }
+    })();
+    console.log("Registration response sent to client");
+    return response;
 };
 exports.registerUserService = registerUserService;
 /**
