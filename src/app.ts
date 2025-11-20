@@ -26,13 +26,23 @@ app.use(
 app.set("trust proxy", 1);
 
 // CORS Configuration
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+  : [
+      "http://localhost:3000",
+      "https://wander-wise-lovat.vercel.app",
+      "https://wanderwise-server.onrender.com",
+    ];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(",") || [
-    "https://wander-wise-lovat.vercel.app",
-  ],
+  origin: corsOrigins,
   credentials: true,
   optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
+
+console.log("CORS Origins configured:", corsOrigins);
 app.use(cors(corsOptions));
 
 // Rate Limiting

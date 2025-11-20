@@ -24,13 +24,21 @@ app.use((0, helmet_1.default)({
 // Trust proxy (needed if behind reverse proxy like Nginx/Heroku)
 app.set("trust proxy", 1);
 // CORS Configuration
-const corsOptions = {
-    origin: process.env.CORS_ORIGIN?.split(",") || [
+const corsOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+    : [
+        "http://localhost:3000",
         "https://wander-wise-lovat.vercel.app",
-    ],
+        "https://wanderwise-server.onrender.com",
+    ];
+const corsOptions = {
+    origin: corsOrigins,
     credentials: true,
     optionsSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 };
+console.log("CORS Origins configured:", corsOrigins);
 app.use((0, cors_1.default)(corsOptions));
 // Rate Limiting
 const limiter = (0, express_rate_limit_1.default)({
