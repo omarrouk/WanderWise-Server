@@ -28,8 +28,6 @@ app.set("trust proxy", 1);
 // CORS Configuration
 const corsOptions = {
   origin: process.env.CORS_ORIGIN?.split(",") || [
-    "http://localhost:3000",
-    "http://localhost:3001",
     "https://wander-wise-lovat.vercel.app",
   ],
   credentials: true,
