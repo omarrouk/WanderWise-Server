@@ -9,8 +9,6 @@ import bcrypt from "bcryptjs";
 import {
   RegisterDTO,
   LoginDTO,
-  VerifyEmailDTO,
-  ResendVerificationDTO,
   ForgotPasswordDTO,
   ResetPasswordDTO,
 } from "../dtos/auth.dto";
