@@ -17,29 +17,41 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const registerUserService = async (data) => {
     const { firstName, lastName, email, password } = data;
     console.log("Register service - Received:", { firstName, lastName, email, password: "***" });
+    // Check if user already exists FIRST before any operations
     const existingUser = await user_model_1.User.findOne({ email });
-    if (existingUser)
+    if (existingUser) {
+        console.log("User already exists:", email);
         throw new errorMiddleware_1.AppError("Email already exists", 400, "DUPLICATE_KEY");
+    }
+    // Create the user
+    console.log("Creating new user...");
     const user = await user_model_1.User.create({ firstName, lastName, email, password });
+    console.log("User created successfully:", user._id);
     // Generate verification token
     const { token: verificationToken, expires } = (0, generateToken_1.generateToken)(32, 24); // 24 hours
     user.verificationToken = verificationToken;
     user.verificationTokenExpires = expires;
     await user.save();
+    console.log("Verification token generated");
     // Send verification email
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const url = `${frontendUrl}/verify?token=${verificationToken}`;
+    console.log("Sending verification email to:", email);
+    console.log("Verification URL:", url);
     const html = (0, emailTemplate_1.generateEmailTemplate)(user.firstName, url, "verify");
     try {
         await (0, sendEmail_1.sendEmail)(user.email, "Verify Your WanderWise Account", html);
+        console.log("Verification email sent successfully");
     }
     catch (emailError) {
         console.error("Email sending failed:", emailError);
         // Don't fail registration if email fails - user can resend
+        // But log it for debugging
     }
     const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET, {
         expiresIn: "1d",
     });
+    console.log("Registration completed successfully");
     return {
         success: true,
         message: "Registration successful! Check your email to verify your account.",

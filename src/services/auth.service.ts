@@ -23,34 +23,47 @@ export const registerUserService = async (data: RegisterDTO) => {
 
   console.log("Register service - Received:", { firstName, lastName, email, password: "***" });
 
+  // Check if user already exists FIRST before any operations
   const existingUser = await User.findOne({ email });
-  if (existingUser)
+  if (existingUser) {
+    console.log("User already exists:", email);
     throw new AppError("Email already exists", 400, "DUPLICATE_KEY");
+  }
 
+  // Create the user
+  console.log("Creating new user...");
   const user = await User.create({ firstName, lastName, email, password });
+  console.log("User created successfully:", user._id);
 
   // Generate verification token
   const { token: verificationToken, expires } = generateToken(32, 24); // 24 hours
   user.verificationToken = verificationToken;
   user.verificationTokenExpires = expires;
   await user.save();
+  console.log("Verification token generated");
 
   // Send verification email
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   const url = `${frontendUrl}/verify?token=${verificationToken}`;
+  console.log("Sending verification email to:", email);
+  console.log("Verification URL:", url);
+  
   const html = generateEmailTemplate(user.firstName, url, "verify");
   
   try {
     await sendEmail(user.email, "Verify Your WanderWise Account", html);
+    console.log("Verification email sent successfully");
   } catch (emailError) {
     console.error("Email sending failed:", emailError);
     // Don't fail registration if email fails - user can resend
+    // But log it for debugging
   }
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
     expiresIn: "1d",
   });
 
+  console.log("Registration completed successfully");
   return {
     success: true,
     message:
